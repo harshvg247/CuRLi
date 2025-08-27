@@ -1,0 +1,34 @@
+import util.TimeUtil;
+
+public class RateLimiter {
+    private final RateLimiterConfig config;
+    private final long start_millis;
+    private double avl_tokens;
+    private long last_refill_millis;
+    private final Object lock = new Object();
+
+    RateLimiter(RateLimiterConfig config) {
+        this.config = config;
+        this.avl_tokens = 0;
+        this.last_refill_millis = TimeUtil.milliTime();
+        this.start_millis = last_refill_millis;
+    }
+
+    public boolean tryAcquire() {
+        synchronized (lock) {
+            refill();
+            if (avl_tokens < 1000) return false;
+            avl_tokens -= 1000;
+            return true;
+        }
+    }
+
+    private void refill() {
+        long now_millis = TimeUtil.milliTime();
+        avl_tokens += config.calculateTokens(last_refill_millis - start_millis, now_millis - start_millis);  // what if very close time??
+        avl_tokens = Math.min(avl_tokens, config.getMaxTokens());
+        last_refill_millis = now_millis;
+    }
+
+
+}
