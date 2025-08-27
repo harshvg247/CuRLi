@@ -5,13 +5,14 @@ public class ConstantPattern implements Pattern {
     private final double rate;
 
     ConstantPattern(double r) {
+        if (r <= 0) {
+            throw new IllegalArgumentException("rate must be > 0");
+        }
         rate = r;
     }
 
     public static ConstantPattern of(double r) {
-        if (r <= 0) {
-            throw new IllegalArgumentException("rate must be > 0");
-        }
+
         return new ConstantPattern(r);
     }
 

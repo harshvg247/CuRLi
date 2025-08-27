@@ -1,4 +1,5 @@
 import patterns.ConstantPattern;
+import patterns.LinearPattern;
 import util.TimeUtil;
 
 import java.util.concurrent.CountDownLatch;
@@ -7,7 +8,24 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Main {
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) {
+        RateLimiterConfig.Builder config_builder = RateLimiterConfig.builder();
+        config_builder.addSegment(LinearPattern.of(0, 100, 1), 2);
+        RateLimiterConfig config = config_builder.build();
+
+        // rate limiter with the above config
+        RateLimiter limiter = new RateLimiter(config);
+        int count = 0;
+        while (true){
+            if(limiter.tryAcquire()){
+                count++;
+                System.out.println(count+"\t\t");
+                System.out.println(TimeUtil.milliTime());
+            }
+        }
+    }
+
+    public void threadTest() throws InterruptedException{
         // build a config: 10_000 tokens/sec for 1 second
         RateLimiterConfig.Builder config_builder = RateLimiterConfig.builder();
         config_builder.addSegment(ConstantPattern.of(10_000), 10)
@@ -19,7 +37,6 @@ public class Main {
         long start = TimeUtil.milliTime();
 
         int numThreads = 10;
-        int attemptsPerThread = 1480000;
 
         ExecutorService executor = Executors.newFixedThreadPool(numThreads);
         CountDownLatch startLatch = new CountDownLatch(1);
