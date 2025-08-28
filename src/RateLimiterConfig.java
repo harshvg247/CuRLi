@@ -22,6 +22,7 @@ public class RateLimiterConfig {
         }
         this.prefix = Collections.unmodifiableList(prefix);
         this.totalDuration = totalDuration;
+        System.out.println("prefix: " + prefix);
     }
 
     public static Builder builder() {
@@ -30,14 +31,15 @@ public class RateLimiterConfig {
 
 
     public double calculateTokens(long last_refill_millis, long now_millis) {
-        if (now_millis > totalDuration) {
+        if (last_refill_millis >= totalDuration) {
             return 0;
         }
+//        now_millis = Math.min(totalDuration, now_millis);
         if (last_refill_millis >= now_millis) return 0;
         int start_idx = findSeg(last_refill_millis, false);
         int end_idx = findSeg(now_millis, true);
         if (start_idx == end_idx) {
-            return segments.get(start_idx).integrate(last_refill_millis, now_millis);
+            return segments.get(start_idx).integrate(last_refill_millis - prefix.get(start_idx), now_millis - prefix.get(start_idx));
         }
         double token_cnt = 0;
         token_cnt += segments.get(start_idx).integrateFrom(last_refill_millis - prefix.get(start_idx));

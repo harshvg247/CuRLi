@@ -10,7 +10,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class Main {
     public static void main(String[] args) {
         RateLimiterConfig.Builder config_builder = RateLimiterConfig.builder();
-        config_builder.addSegment(LinearPattern.of(0, 100, 1), 2);
+        config_builder
+//                .addSegment(ConstantPattern.of(10000), 1);
+                .addSegment(LinearPattern.of(100, 0, 1), 1);
+
         RateLimiterConfig config = config_builder.build();
 
         // rate limiter with the above config
