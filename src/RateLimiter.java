@@ -6,6 +6,7 @@ public class RateLimiter {
     private double avl_tokens;
     private long last_refill_millis;
     private final Object lock = new Object();
+    private final double EPSILON = 1e-7;
 
     RateLimiter(RateLimiterConfig config) {
         this.config = config;
@@ -27,6 +28,9 @@ public class RateLimiter {
         long now_millis = TimeUtil.milliTime();
         avl_tokens += config.calculateTokens(last_refill_millis - start_millis, now_millis - start_millis);  // what if very close time??
         avl_tokens = Math.min(avl_tokens, config.getMaxTokens());
+        if(Math.abs(Math.round(avl_tokens) - avl_tokens) < EPSILON){
+            avl_tokens = Math.round(avl_tokens);
+        }
         last_refill_millis = now_millis;
     }
 

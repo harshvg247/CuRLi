@@ -34,7 +34,7 @@ public class RateLimiterConfig {
         if (last_refill_millis >= totalDuration) {
             return 0;
         }
-//        now_millis = Math.min(totalDuration, now_millis);
+        now_millis = Math.min(totalDuration, now_millis);
         if (last_refill_millis >= now_millis) return 0;
         int start_idx = findSeg(last_refill_millis, false);
         int end_idx = findSeg(now_millis, true);
