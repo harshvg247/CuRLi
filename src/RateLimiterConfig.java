@@ -8,10 +8,11 @@ public class RateLimiterConfig {
     private final List<Segment> segments;
     private final List<Long> prefix;
     private final long totalDuration;
-    private final double maxTokens = 1_000_000;
+    private double maxTokens = 1_000_000;
 
     RateLimiterConfig(Builder builder) {
         // prevent operations like add/delete on list
+        this.maxTokens = builder.max_tokens;
         this.segments = Collections.unmodifiableList(builder.segments);
         List<Long> prefix = new ArrayList<>();
         long totalDuration = 0;
@@ -36,8 +37,13 @@ public class RateLimiterConfig {
         }
         now_millis = Math.min(totalDuration, now_millis);
         if (last_refill_millis >= now_millis) return 0;
-        int start_idx = findSeg(last_refill_millis, false);
-        int end_idx = findSeg(now_millis, true);
+
+        long start = System.nanoTime();
+
+        int start_idx = findSegLinear(last_refill_millis, false);
+        int end_idx = findSegLinear(now_millis, true);
+
+        System.out.println((System.nanoTime() - start)/100);
         if (start_idx == end_idx) {
             return segments.get(start_idx).integrate(last_refill_millis - prefix.get(start_idx), now_millis - prefix.get(start_idx));
         }
@@ -60,15 +66,32 @@ public class RateLimiterConfig {
         }
     }
 
+//    better than binary search for segment.size < 100
+    private int findSegLinear(long t, boolean end) {
+        for (int i = 0; i < prefix.size(); i++) {
+            if (prefix.get(i) > t) {
+                return i - 1;
+            }
+        }
+        // if t is beyond all prefix values, return last segment
+        return prefix.size() - 2; // -2 because prefix has one extra element at start (0)
+    }
+
     public double getMaxTokens() {
         return maxTokens;
     }
 
     public static class Builder {
         private final List<Segment> segments = new ArrayList<>();
+        private double max_tokens = 1_000_000;
 
         public Builder addSegment(Pattern pattern, long duration_sec) {
             this.segments.add(new Segment(pattern, duration_sec * 1000));
+            return this;
+        }
+
+        public Builder setMaxTokens(double max_tokens){
+            this.max_tokens = max_tokens;
             return this;
         }
 
