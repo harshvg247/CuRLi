@@ -17,6 +17,10 @@ public class RateLimiter {
 
     public boolean tryAcquire() {
         synchronized (lock) {
+            if(avl_tokens >= 1000){
+                avl_tokens-=1000;
+                return true;
+            }
             refill();
             if (avl_tokens < 1000) return false;
             avl_tokens -= 1000;
