@@ -1,3 +1,5 @@
+package rateLimiter;
+
 import util.TimeUtil;
 
 public class RateLimiter {
@@ -8,7 +10,7 @@ public class RateLimiter {
     private final Object lock = new Object();
     private final double EPSILON = 1e-7;
 
-    RateLimiter(RateLimiterConfig config) {
+    public RateLimiter(RateLimiterConfig config) {
         this.config = config;
         this.avl_tokens = 0;
         this.last_refill_millis = TimeUtil.milliTime();
@@ -30,6 +32,7 @@ public class RateLimiter {
 
     private void refill() {
         long now_millis = TimeUtil.milliTime();
+        if(now_millis == last_refill_millis)return;
         avl_tokens += config.calculateTokens(last_refill_millis - start_millis, now_millis - start_millis);  // what if very close time??
         avl_tokens = Math.min(avl_tokens, config.getMaxTokens());
         if(Math.abs(Math.round(avl_tokens) - avl_tokens) < EPSILON){

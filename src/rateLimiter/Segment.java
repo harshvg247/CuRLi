@@ -1,3 +1,5 @@
+package rateLimiter;
+
 import patterns.Pattern;
 
 public class Segment {

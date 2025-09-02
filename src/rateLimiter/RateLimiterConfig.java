@@ -1,3 +1,5 @@
+package rateLimiter;
+
 import patterns.Pattern;
 
 import java.util.ArrayList;
@@ -43,7 +45,7 @@ public class RateLimiterConfig {
         int start_idx = findSegLinear(last_refill_millis, false);
         int end_idx = findSegLinear(now_millis, true);
 
-        System.out.println((System.nanoTime() - start)/100);
+//        System.out.println((System.nanoTime() - start)/100);
         if (start_idx == end_idx) {
             return segments.get(start_idx).integrate(last_refill_millis - prefix.get(start_idx), now_millis - prefix.get(start_idx));
         }
