@@ -47,7 +47,7 @@ public class RateLimiterConfig {
 
 //        System.out.println((System.nanoTime() - start)/100);
         if (start_idx == end_idx) {
-            return segments.get(start_idx).integrate(last_refill_millis - prefix.get(start_idx), now_millis - prefix.get(start_idx));
+            return segments.get(start_idx).integrate(last_refill_millis - prefix.get(start_idx), now_millis - prefix.get(start_idx))/1000;
         }
         double token_cnt = 0;
         token_cnt += segments.get(start_idx).integrateFrom(last_refill_millis - prefix.get(start_idx));
@@ -55,7 +55,7 @@ public class RateLimiterConfig {
             token_cnt += segments.get(ind).integrate();
         }
         token_cnt += segments.get(end_idx).integrateUpto(now_millis - prefix.get(end_idx));
-        return token_cnt;
+        return token_cnt/1000;
     }
 
     private int findSeg(long t, boolean end) {
