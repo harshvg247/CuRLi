@@ -17,17 +17,21 @@ public class RateLimiter {
         this.start_millis = last_refill_millis;
     }
 
-    public boolean tryAcquire() {
+    public boolean tryAcquire(int num_tokens) {
         synchronized (lock) {
-            if(avl_tokens >= 1){
-                avl_tokens-=1;
+            if(avl_tokens >= num_tokens){
+                avl_tokens-=num_tokens;
                 return true;
             }
             refill();
-            if (avl_tokens < 1) return false;
-            avl_tokens -= 1;
+            if (avl_tokens < num_tokens) return false;
+            avl_tokens -= num_tokens;
             return true;
         }
+    }
+
+    public boolean tryAcquire(){
+        return tryAcquire(1);
     }
 
     private void refill() {
