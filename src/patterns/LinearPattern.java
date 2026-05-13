@@ -3,6 +3,7 @@ package patterns;
 public class LinearPattern implements Pattern {
     private final double startRate;
     private final double endRate;
+    private final double slope;
     private final long duration;
 
     LinearPattern(double startRate, double endRate, long durationSec) {
@@ -12,6 +13,7 @@ public class LinearPattern implements Pattern {
         this.startRate = startRate;
         this.endRate = endRate;
         this.duration = durationSec * 1000;
+        this.slope = (endRate - startRate) / duration;
     }
 
     public static LinearPattern of(double startRate, double endRate, long durationSec) {
@@ -28,8 +30,6 @@ public class LinearPattern implements Pattern {
         long b = Math.max(0, Math.min(t1, duration));
 
         // integral of a linear rate function: r(t) = start + slope * t
-        double slope = (endRate - startRate) / duration;
-
         double integralPart = (startRate * (b - a)) + 0.5 * slope * (b * b - a * a);
 
         // if t1 exceeds duration, add constant part with endRate
