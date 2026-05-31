@@ -79,6 +79,42 @@ public class RateLimiterConfig {
         return prefix.size() - 2; // -2 because prefix has one extra element at start (0)
     }
 
+    public long calculateDelayMillis(long currentRelativeTime, double tokensNeeded) {
+        if (tokensNeeded <= 0) return 0;
+
+        long totalDelay = 0;
+        long targetTime = currentRelativeTime;
+
+        while (tokensNeeded > 0) {
+            if (targetTime >= totalDuration) {
+                // If timeline has completely expired, we cannot fulfill tokens from the profile.
+                // Fallback to avoid infinite loops: assume a zero-generation state or long sleep.
+                return Long.MAX_VALUE;
+            }
+
+            int idx = findSegLinear(targetTime, false);
+            Segment seg = segments.get(idx);
+            long segStart = prefix.get(idx);
+            long timeInSeg = targetTime - segStart;
+            long segRemainingTime = seg.getDuration_millis() - timeInSeg;
+
+            // Calculate max tokens this specific segment can yield before it finishes
+            double maxTokensFromSeg = seg.integrateFrom(timeInSeg) / 1000.0;
+
+            if (maxTokensFromSeg >= tokensNeeded) {
+                // The remaining portion of this segment can fully satisfy the demand
+                totalDelay += seg.getWaitingTime(timeInSeg, tokensNeeded * 1000.0);
+                break;
+            } else {
+                // Consume everything this segment has left and move to the next boundary
+                tokensNeeded -= maxTokensFromSeg;
+                totalDelay += segRemainingTime;
+                targetTime = segStart + seg.getDuration_millis(); // Jump directly to next segment start
+            }
+        }
+        return totalDelay;
+    }
+
     public double getMaxTokens() {
         return maxTokens;
     }

@@ -64,4 +64,52 @@ public class RateLimiter {
 //        }
 //        last_refill_millis = now_millis;
 //    }
+
+    public void acquire(double requestedTokens) throws InterruptedException {
+        while (true) {
+            if (tryAcquire(requestedTokens)) {
+                return;
+            }
+
+            LimiterState current = state.get();
+            long now = TimeUtil.milliTime();
+            double currentTokens = current.avl_tokens();
+
+            if (now > current.last_refill_millis()) {
+                double generated = config.calculateTokens(
+                        current.last_refill_millis() - start_millis,
+                        now - start_millis
+                );
+                currentTokens = Math.min(config.getMaxTokens(), currentTokens + generated);
+            }
+
+            double missingTokens = requestedTokens - currentTokens;
+            if (missingTokens <= 0) {
+                continue;
+            }
+
+            long currentRelativeTime = now - start_millis;
+            long waitMillis = config.calculateDelayMillis(currentRelativeTime, missingTokens);
+
+            if (waitMillis == Long.MAX_VALUE) {
+                // Timeline expired scenario: sleep fallback to preserve CPU bounds
+                Thread.sleep(10);
+                continue;
+            }
+
+            if (waitMillis > 0) {
+                    Thread.sleep(waitMillis);
+            } else {
+//                The Thread.yield() method in Java is a static native method
+//                used to hint to the thread scheduler that the currently
+//                executing thread is willing to pause its execution
+//                and give up its current processor time slice
+                Thread.yield();
+            }
+        }
+    }
+
+    public void acquire() throws InterruptedException{
+        acquire(1);
+    }
 }
