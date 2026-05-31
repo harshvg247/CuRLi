@@ -17,6 +17,7 @@ public class Tests {
         System.out.println("--- Starting CuRLi Verification Test Suite ---\n");
 
         runDeterministicConstantTest();
+        runBlockingDeterministicConstantTest();
         runSegmentTransitionTest();
         runHighThroughputConcurrencyTest();
         runPostTimelineExpiryTest();
@@ -57,6 +58,47 @@ public class Tests {
         } else {
             System.out.println("FAILED (Expected ~2000, but got: " + acquired + ")");
         }
+    }
+
+    /**
+     * Pillar A: Validates exact math calculation for a simple ConstantPattern.
+     */
+    private static void runBlockingDeterministicConstantTest() throws InterruptedException {
+        System.out.print("Test: Blocking Deterministic Constant Rate Math... ");
+
+        // 10,000 tokens/sec = 10 tokens/ms
+        double r = 10000;
+        RateLimiterConfig config = RateLimiterConfig.builder()
+                .addSegment(ConstantPattern.of(r), 2)
+                .setMaxTokens(50000)
+                .build();
+
+        RateLimiter limiter = new RateLimiter(config);
+
+        // Wait exactly 200 milliseconds to let tokens generate
+//        long x = System.nanoTime();
+//        while(System.nanoTime() - x < 200000000){
+//
+//        }
+//        Thread.sleep(200);
+//        System.out.println(System.nanoTime() - x);
+        // 200ms * 10 tokens/ms = ~2000 tokens generated
+//        int acquired = 0;
+        long x = System.currentTimeMillis();
+        int numTokensRequired = 20000;
+        for(int i=0;i<numTokensRequired;i++){
+            limiter.acquire();
+        }
+        long y = System.currentTimeMillis();
+//        System.out.println(y-x);
+        System.out.println("Expected: " + numTokensRequired/r + "s Observed: " + (y-x)/1000.0);
+
+        // Allow a small padding window for execution delays during Thread.sleep()
+//        if (acquired >= 1900 && acquired <= 2100) {
+//            System.out.println("PASSED (Expected: 2000, Acquired: " + acquired + " tokens)");
+//        } else {
+//            System.out.println("FAILED (Expected ~2000, but got: " + acquired + ")");
+//        }
     }
 
     /**
