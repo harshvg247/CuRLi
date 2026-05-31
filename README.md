@@ -1,7 +1,8 @@
 # Custom Rate Limiter
-
 [![Language](https://img.shields.io/badge/Language-Java-blue.svg)](https://www.java.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+Aiming for 99% accuracy
 
 A sophisticated Java rate limiter that generates tokens based on a dynamic, multi-stage profile.
 
