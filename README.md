@@ -2,7 +2,11 @@
 [![Language](https://img.shields.io/badge/Language-Java-blue.svg)](https://www.java.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Aiming for 99% accuracy
+SLI:
+$\frac{\text{Total Actual Successful Requests}}{\text{Theoretical Mathematical Token Limit}} \times 100$
+
+SLO:
+The Token Count Accuracy Rate (SLI) must be $\ge 99\%$ over any given high-throughput simulation run
 
 A sophisticated Java rate limiter that generates tokens based on a dynamic, multi-stage profile.
 
