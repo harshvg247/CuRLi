@@ -36,4 +36,8 @@ public class Segment {
     public double integrate() {
         return pattern.integrate(0, duration_millis);
     }
+
+    public long getWaitingTime(long t0, double numTokens) {
+        return pattern.getWaitingTime(t0, numTokens);
+    }
 }

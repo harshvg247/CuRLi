@@ -30,4 +30,10 @@ public class ConstantPattern implements Pattern {
     public String toString() {
         return "ConstantPattern: r = " + rate;
     }
+
+
+    @Override
+    public long getWaitingTime(long t0, double numTokens){
+        return (long)(numTokens/rate);
+    }
 }
