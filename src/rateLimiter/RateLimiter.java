@@ -17,6 +17,14 @@ public class RateLimiter {
         this.state = new AtomicReference<>(new LimiterState(0, now));
     }
 
+    public long getStart_millis(){
+        return start_millis;
+    }
+
+    public double getNumTokens(){
+        return state.get().avl_tokens();
+    }
+
     public boolean tryAcquire(double requestedTokens) {
         while (true) { // The CAS Loop
             LimiterState current = state.get();
