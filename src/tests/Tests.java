@@ -77,15 +77,18 @@ public class Tests {
 
         // Sleep for 1200ms (crosses over into the second segment)
         // Expected: 1000ms * 5 tokens/ms + 200ms * 10 tokens/ms = 5000 + 2000 = 7000 tokens
-        Thread.sleep(1200);
+        long x = System.nanoTime();
+        while(System.nanoTime() - x < 1200000000){
+
+        }
 
         int acquired = 0;
-        while (limiter.tryAcquire()) {
-            acquired++;
+        while (limiter.tryAcquire(10)) {
+            acquired+=10;
         }
 
         if (acquired >= 6800 && acquired <= 7300) {
-            System.out.println("PASSED (Acquired: " + acquired + " tokens)");
+            System.out.println("PASSED (Expected: 7000, Acquired: " + acquired + " tokens)");
         } else {
             System.out.println("FAILED (Expected ~7000, but got: " + acquired + ")");
         }
