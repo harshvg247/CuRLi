@@ -1,0 +1,15 @@
+synchronised
+ExecutorService
+AtomicInt and AtomicLong
+Reentrant lock
+Builder Pattern
+
+Rate limiting Strategies: https://stripe.com/blog/rate-limiters
+
+Record:
+    Java automatically generates:
+        constructor
+        getters/accessors
+        toString()
+        equals()
+        hashCode()
