@@ -40,23 +40,18 @@ public class Tests {
         RateLimiter limiter = new RateLimiter(config);
 
         // Wait exactly 200 milliseconds to let tokens generate
-        long x = System.nanoTime();
-        while(System.nanoTime() - x < 200000000){
+        while(TimeUtil.milliTime() - limiter.getStart_millis() < 200){
 
         }
-//        Thread.sleep(200);
-//        System.out.println(System.nanoTime() - x);
-        // 200ms * 10 tokens/ms = ~2000 tokens generated
-        int acquired = 0;
-        while (limiter.tryAcquire(10)) {
-            acquired+=10;
-        }
+//        method is called with param 0 to update state of limiter
+        limiter.tryAcquire(0);
 
-        // Allow a small padding window for execution delays during Thread.sleep()
-        if (acquired >= 1900 && acquired <= 2100) {
-            System.out.println("PASSED (Expected: 2000, Acquired: " + acquired + " tokens)");
-        } else {
-            System.out.println("FAILED (Expected ~2000, but got: " + acquired + ")");
+        double numTokens = limiter.getNumTokens();
+        System.out.println("Expected: 2000, Observed: " + numTokens);
+        if(Math.abs((2000 - numTokens)*100/2000) < 1 ){
+            System.out.println("Passed, Error within 1%");
+        }else{
+            System.out.println("Failed, Error above 1%");
         }
     }
 
