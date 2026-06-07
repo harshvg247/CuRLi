@@ -80,13 +80,14 @@ public class Tests {
         // 200ms * 10 tokens/ms = ~2000 tokens generated
 //        int acquired = 0;
         long x = System.currentTimeMillis();
-        int numTokensRequired = 20000;
+        int numTokensRequired = 2000;
+        int tokenBatchSize = 10;
         for(int i=0;i<numTokensRequired;i++){
-            limiter.acquire();
+            limiter.acquire(tokenBatchSize);
         }
         long y = System.currentTimeMillis();
 //        System.out.println(y-x);
-        System.out.println("Expected: " + numTokensRequired/r + "s Observed: " + (y-x)/1000.0);
+        System.out.println("Expected: " + numTokensRequired*tokenBatchSize/r + "s Observed: " + (y-x)/1000.0);
 
         // Allow a small padding window for execution delays during Thread.sleep()
 //        if (acquired >= 1900 && acquired <= 2100) {
@@ -180,7 +181,7 @@ public class Tests {
         long actualAcquired = totalSuccessAcquisitions.get();
 
         // Safety check: Concurrency must NEVER exceed theoretical max limits plus execution jitter
-        if (actualAcquired <= maxAllowedTokens + 500) {
+        if (actualAcquired <= maxAllowedTokens*(1.0 + 1.0/100) && actualAcquired >= maxAllowedTokens*(1.0 - 1.0/100)) {
             System.out.println("PASSED (Acquired: " + actualAcquired + " / Max Limit: " + maxAllowedTokens + ")");
         } else {
             System.out.println("FAILED (Over-allocation detected! Acquired: " + actualAcquired + " > Max Limit: " + maxAllowedTokens + ")");
