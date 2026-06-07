@@ -1,6 +1,7 @@
 package tests;
 
 import patterns.ConstantPattern;
+import patterns.LinearPattern;
 import rateLimiter.RateLimiter;
 import rateLimiter.RateLimiterConfig;
 import util.TimeUtil;
@@ -17,7 +18,9 @@ public class Tests {
         System.out.println("--- Starting CuRLi Verification Test Suite ---\n");
 
         runDeterministicConstantTest();
+        runDeterministicLinearTest();
         runBlockingDeterministicConstantTest();
+        runBlockingDeterministicLinearTest();
         runSegmentTransitionTest();
         runHighThroughputConcurrencyTest();
         runPostTimelineExpiryTest();
@@ -51,6 +54,40 @@ public class Tests {
         if(Math.abs((2000 - numTokens)*100/2000) < 1 ){
             System.out.println("Passed, Error within 1%");
         }else{
+            System.out.println("Failed, Error above 1%");
+        }
+    }
+
+    /**
+     * Pillar A: Validates exact math calculation for a simple LinearPattern ramp.
+     */
+    private static void runDeterministicLinearTest() throws InterruptedException {
+        System.out.print("Test: Deterministic Linear Rate Math... ");
+
+        // Ramp from 0 to 10,000 tokens/sec over a duration of 2 seconds
+        RateLimiterConfig config = RateLimiterConfig.builder()
+                .addSegment(LinearPattern.of(0, 10000, 2), 2)
+                .setMaxTokens(50000)
+                .build();
+
+        RateLimiter limiter = new RateLimiter(config);
+
+        // Wait exactly 200 milliseconds to let tokens generate along the ramp
+        while (TimeUtil.milliTime() - limiter.getStart_millis() < 200) {
+            // Busy-wait spin loop to preserve high-precision alignment
+        }
+
+        // Method is called with param 0 to safely flush and update the internal state of the limiter
+        limiter.tryAcquire(0);
+
+        // Expected tokens generated in the first 200ms of this specific triangle ramp = 100.0
+        double expectedTokens = 100.0;
+        double numTokens = limiter.getNumTokens();
+
+        System.out.println("Expected: " + expectedTokens + ", Observed: " + numTokens);
+        if (Math.abs((expectedTokens - numTokens) * 100 / expectedTokens) < 1) {
+            System.out.println("Passed, Error within 1%");
+        } else {
             System.out.println("Failed, Error above 1%");
         }
     }
@@ -95,6 +132,45 @@ public class Tests {
 //        } else {
 //            System.out.println("FAILED (Expected ~2000, but got: " + acquired + ")");
 //        }
+    }
+
+    /**
+     * Pillar A: Validates blocking wait math calculation for a simple LinearPattern ramp.
+     */
+    private static void runBlockingDeterministicLinearTest() throws InterruptedException {
+        System.out.print("Test: Blocking Deterministic Linear Rate Math... ");
+
+        // Ramp from 0 to 10,000 tokens/sec over a duration of 2 seconds
+        RateLimiterConfig config = RateLimiterConfig.builder()
+                .addSegment(LinearPattern.of(0, 10000, 2), 2)
+                .setMaxTokens(50000)
+                .build();
+
+        RateLimiter limiter = new RateLimiter(config);
+
+        long startTime = System.currentTimeMillis();
+
+        // Total tokens required = 250 * 10 = 2,500 tokens.
+        // Integrating a ramp from 0 to 10k over 2s yields exactly 2,500 tokens at t = 1000ms (1.0 second).
+        int numTokensRequired = 250;
+        int tokenBatchSize = 10;
+
+        for (int i = 0; i < numTokensRequired; i++) {
+            limiter.acquire(tokenBatchSize);
+        }
+
+        long endTime = System.currentTimeMillis();
+        double observedSeconds = (endTime - startTime) / 1000.0;
+        double expectedSeconds = 1.0;
+
+        System.out.println("Expected: " + expectedSeconds + "s Observed: " + observedSeconds + "s");
+
+        // Allow a small tolerance padding window (e.g., 5%) for standard OS thread scheduling delays
+        if (Math.abs(observedSeconds - expectedSeconds) <= 0.01) {
+            System.out.println("Passed, Error within acceptable execution jitter bounds");
+        } else {
+            System.out.println("Failed, Deviation exceeds acceptable threshold");
+        }
     }
 
     /**
