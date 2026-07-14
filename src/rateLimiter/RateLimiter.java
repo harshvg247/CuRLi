@@ -74,48 +74,148 @@ public class RateLimiter {
 //    }
 
     public void acquire(double requestedTokens) throws InterruptedException {
-        while (true) {
-            if (tryAcquire(requestedTokens)) {
-                return;
-            }
+        // Fast-fail if the request exceeds maximum bucket capacity, preventing impossible acquisitions
+        if (requestedTokens > config.getMaxTokens()) {
+            throw new IllegalArgumentException("Requested tokens exceed maximum bucket capacity.");
+        }
 
+        long waitMillis = reserve(requestedTokens);
+
+        // Fixes the infinite Thread.sleep(10) livelock bug
+        if (waitMillis == Long.MAX_VALUE) {
+            throw new IllegalStateException("Rate limit timeline expired. Cannot acquire requested tokens.");
+        }
+
+        if (waitMillis > 0) {
+            Thread.sleep(waitMillis);
+        }
+    }
+
+    /**
+     * Atomically calculates and reserves future tokens, returning the required sleep time.
+     */
+    private long reserve(double requestedTokens) {
+        while (true) {
             LimiterState current = state.get();
             long now = TimeUtil.milliTime();
-            double currentTokens = current.avl_tokens();
 
-            if (now > current.last_refill_millis()) {
+            double currentTokens = current.avl_tokens();
+            long lastRefill = current.last_refill_millis();
+
+            // 1. Calculate the actual tokens available at 'now'
+            if (now > lastRefill) {
                 double generated = config.calculateTokens(
-                        current.last_refill_millis() - start_millis,
+                        lastRefill - start_millis,
                         now - start_millis
                 );
                 currentTokens = Math.min(config.getMaxTokens(), currentTokens + generated);
+
+                // Clean up floating point precision drift
+                if (Math.abs(Math.round(currentTokens) - currentTokens) < EPSILON) {
+                    currentTokens = Math.round(currentTokens);
+                }
             }
 
+            // 2. If we have enough tokens, consume them immediately without waiting
+            if (currentTokens >= requestedTokens) {
+                long newRefillTime = Math.max(now, lastRefill);
+                LimiterState next = new LimiterState(currentTokens - requestedTokens, newRefillTime);
+
+                if (state.compareAndSet(current, next)) {
+                    return 0L; // No wait time required
+                }
+                continue; // CAS failed due to contention; loop to retry
+            }
+
+            // 3. We don't have enough tokens; calculate future reservation time
             double missingTokens = requestedTokens - currentTokens;
-            if (missingTokens <= 0) {
-                continue;
+
+            // Start projecting time from the furthest point in the future
+            long timeToRefillFrom = Math.max(now, lastRefill);
+            long currentRelativeTime = timeToRefillFrom - start_millis;
+
+            long delayMillis = config.calculateDelayMillis(currentRelativeTime, missingTokens);
+
+            // If the timeline expires before fulfilling the missing tokens, return the MAX_VALUE marker
+            if (delayMillis == Long.MAX_VALUE) {
+                return Long.MAX_VALUE;
             }
 
-            long currentRelativeTime = now - start_millis;
-            long waitMillis = config.calculateDelayMillis(currentRelativeTime, missingTokens);
+            // 4. Reserve the tokens by advancing the refill timeline
+            long claimTime = timeToRefillFrom + delayMillis;
 
-            if (waitMillis == Long.MAX_VALUE) {
-                // Timeline expired scenario: sleep fallback to preserve CPU bounds
-                Thread.sleep(10);
-                continue;
+            // PREVENTS CUMULATIVE DRIFT:
+            // Because calculateDelayMillis uses Math.ceil(), 'claimTime' rounds up to the next whole millisecond.
+            // We calculate the exact tokens generated during this rounded delay to preserve the fractional difference.
+            double exactGenerated = config.calculateTokens(
+                    currentRelativeTime,
+                    claimTime - start_millis
+            );
+
+            double leftoverTokens = exactGenerated - missingTokens;
+
+            if (Math.abs(Math.round(leftoverTokens) - leftoverTokens) < EPSILON) {
+                leftoverTokens = Math.round(leftoverTokens);
             }
+            leftoverTokens = Math.max(0, leftoverTokens); // Ensure we never drop below 0 due to precision drift
 
-            if (waitMillis > 0) {
-                    Thread.sleep(waitMillis);
-            } else {
-//                The Thread.yield() method in Java is a static native method
-//                used to hint to the thread scheduler that the currently
-//                executing thread is willing to pause its execution
-//                and give up its current processor time slice
-                Thread.yield();
+            // 5. Commit the reservation with the exact fractional leftover carrying forward
+            LimiterState next = new LimiterState(leftoverTokens, claimTime);
+
+            if (state.compareAndSet(current, next)) {
+                // Return the actual sleep duration relative to the current physical time
+                return claimTime - now;
             }
         }
     }
+
+//    public void acquire(double requestedTokens) throws InterruptedException, IllegalStateException {
+//        while (true) {
+//            if (tryAcquire(requestedTokens)) {
+//                return;
+//            }
+//
+//            LimiterState current = state.get();
+//            long now = TimeUtil.milliTime();
+//            double currentTokens = current.avl_tokens();
+//
+//            if (now > current.last_refill_millis()) {
+//                double generated = config.calculateTokens(
+//                        current.last_refill_millis() - start_millis,
+//                        now - start_millis
+//                );
+//                currentTokens = Math.min(config.getMaxTokens(), currentTokens + generated);
+//            }
+//
+//            double missingTokens = requestedTokens - currentTokens;
+//            if (missingTokens <= 0) {
+//                Thread.yield();
+//
+////              This instantly sends the thread back to the top of the while (true) loop without any Thread.yield() or backoff.
+////              Under heavy concurrent load, multiple threads will furiously spin in this tight loop,
+////              burning CPU cycles without making progress.
+//                continue;
+//            }
+//
+//            long currentRelativeTime = now - start_millis;
+//            long waitMillis = config.calculateDelayMillis(currentRelativeTime, missingTokens);
+//
+//            if (waitMillis == Long.MAX_VALUE) {
+//                // Timeline expired scenario: sleep fallback to preserve CPU bounds
+//                throw new IllegalStateException("Required token amount exceeds maximum possible tokens");
+//            }
+//
+//            if (waitMillis > 0) {
+//                    Thread.sleep(waitMillis);
+//            } else {
+////                The Thread.yield() method in Java is a static native method
+////                used to hint to the thread scheduler that the currently
+////                executing thread is willing to pause its execution
+////                and give up its current processor time slice
+//                Thread.yield();
+//            }
+//        }
+//    }
 
     public void acquire() throws InterruptedException{
         acquire(1);
